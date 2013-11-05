@@ -799,7 +799,7 @@ public class Piece implements Serializable
 		case SOUTHWEST:
 			return (destCol - mCurrentSquare.getCol()) < distance;
 		default:
-			throw new IllegalArgumentException("Unknown movement direction character");
+			throw new IllegalArgumentException("Unknown movement direction character"); //$NON-NLS-1$
 		}
 	}
 

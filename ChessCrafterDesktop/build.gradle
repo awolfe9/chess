@@ -26,14 +26,6 @@ jar {
     from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
 }
 
-apply plugin: 'macAppBundle'
-
-macAppBundle {
-    mainClassName = "gui.Driver"
-	appName = "Chess Crafter"
-	icon = "chess.icns"
-}
-
 buildscript {
     repositories {
         mavenCentral()

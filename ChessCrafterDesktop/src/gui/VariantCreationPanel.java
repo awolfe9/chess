@@ -22,6 +22,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
@@ -30,6 +31,7 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JColorChooser;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -38,8 +40,6 @@ import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 
 import logic.GameBuilder;
 import logic.PieceBuilder;
@@ -69,6 +69,7 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 	public VariantCreationPanel(String variantName)
 	{
 		mDropManager = new DropManager();
+		mScrollPane = new JScrollPane();
 		mGlobalGlassPane = new GlassPane();
 		mGlobalGlassPane.setOpaque(false);
 		Driver.getInstance().setGlassPane(mGlobalGlassPane);
@@ -121,13 +122,9 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 			mBuilder.setWhiteTeam(mWhiteTeam);
 		}
 
-		mDisplayBoard = new Board(2, 1, false);
-		mPieceDisplaySquares[WHITE_INDEX] = new SquareJLabel(mDisplayBoard.getSquare(1, 1));
-		mPieceDisplaySquares[BLACK_INDEX] = new SquareJLabel(mDisplayBoard.getSquare(2, 1));
-
 		mOptionsFrame = new JFrame();
 		mOptionsFrame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-		mScrollPane.setPreferredSize(new Dimension(200, 200));
+		mScrollPane.setPreferredSize(new Dimension(300, 400));
 
 		initGUIComponents(gameToEdit, variantName);
 	}
@@ -144,25 +141,29 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 		showPiecePanel.setPreferredSize(new Dimension(50, 100));
 		showPiecePanel.setOpaque(false);
 
-		for (SquareJLabel squareLabel : mPieceDisplaySquares)
-			showPiecePanel.add(squareLabel);
+//		for (SquareJLabel[] squareLabels : mPieceDisplaySquares)
+//			for (SquareJLabel squareLabel : squareLabels)
+//				showPiecePanel.add(squareLabel);
 
 		constraints.gridx = 5;
 		constraints.gridy = 1;
 		constraints.gridwidth = 1;
 		constraints.insets = new Insets(0, 10, 100, 0);
-		add(showPiecePanel, constraints);
+		// add(showPiecePanel, constraints);
 
 		setupPiecesList();
 
-		for (SquareJLabel squareLabel : mPieceDisplaySquares)
+		boolean gray = true;
+		for (SquareJLabel[] squareLabels : mPieceDisplaySquares)
 		{
-			squareLabel.addMouseListener(new PieceDisplayBoardListener(squareLabel));
-			squareLabel.addMouseMotionListener(m_motionAdapter);
+			for (SquareJLabel squareLabel : squareLabels)
+			{
+				squareLabel.addMouseListener(new PieceDisplayBoardListener(squareLabel));
+				squareLabel.addMouseMotionListener(m_motionAdapter);
+				squareLabel.setBackgroundColor(gray ? Color.LIGHT_GRAY : Color.getHSBColor(30, 70, 70));
+				gray = !gray;
+			}
 		}
-
-		mPieceDisplaySquares[WHITE_INDEX].setBackgroundColor(Color.LIGHT_GRAY);
-		mPieceDisplaySquares[BLACK_INDEX].setBackgroundColor(Color.getHSBColor(30, 70, 70));
 
 		if (game == null)
 		{
@@ -306,7 +307,7 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 			{
 				mOptionsFrame.dispose();
 				mOptionsFrame = new JFrame(Messages.getString("VariantCreationPanel.piecePromotion")); //$NON-NLS-1$
-				new PiecePromotionPanel((String) mPieceTypeList.getSelectedValue(), VariantCreationPanel.this, mOptionsFrame);
+				new PiecePromotionPanel(mPieceTypeList.getSelectedValue().toString(), VariantCreationPanel.this, mOptionsFrame);
 			}
 		});
 
@@ -370,6 +371,7 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 		mainPanelConstraints.gridx = 0;
 		mainPanelConstraints.gridy = 0;
 		mainPanelConstraints.gridwidth = 2;
+		mainPanelConstraints.insets = new Insets(5, 3, 3, 3);
 		mPieceListPanel.add(mScrollPane, mainPanelConstraints);
 
 		mainPanelConstraints.fill = GridBagConstraints.HORIZONTAL;
@@ -377,11 +379,11 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 		mainPanelConstraints.gridy = 1;
 		mainPanelConstraints.gridwidth = 1;
 		mainPanelConstraints.insets = new Insets(5, 3, 3, 3);
-		mPieceListPanel.add(mChangePromotionButton, mainPanelConstraints);
+		// mPieceListPanel.add(mChangePromotionButton, mainPanelConstraints);
 
 		mainPanelConstraints.gridx = 1;
 		mainPanelConstraints.gridy = 1;
-		mPieceListPanel.add(pieceSetupButton, mainPanelConstraints);
+		// mPieceListPanel.add(pieceSetupButton, mainPanelConstraints);
 
 		mainPanelConstraints.gridx = 0;
 		mainPanelConstraints.gridy = 2;
@@ -522,40 +524,79 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 		// create a List with a vertical ScrollBar
 		final DefaultListModel list = new DefaultListModel();
 
-		Object[] standardPieces = PieceBuilder.getSet().toArray();
-		for (int i = 0; i < standardPieces.length; i++)
-			if (!list.contains(standardPieces[i]))
-				list.addElement(standardPieces[i]);
+		JPanel listContainer = new JPanel();
+		listContainer.setLayout(new GridBagLayout());
 
-		String[] customPieces = FileUtility.getCustomPieceArray();
-		for (int i = 0; i < customPieces.length; i++)
-			if (!list.contains(customPieces[i]))
-				list.addElement(customPieces[i]);
+		GridBagConstraints containerConstraints = new GridBagConstraints();
+
+		mScrollPane = new JScrollPane(listContainer);
+
+		Set<String> pieceNames = PieceBuilder.getSet();
+		System.out.println(pieceNames.toString());
+
+		mDisplayBoard = new Board(pieceNames.size(), 2, false);
+		mPieceDisplaySquares = new SquareJLabel[pieceNames.size()][2];
+
+		int rowIndex = 0;
+		for (String pieceName : pieceNames)
+		{
+			mPieceDisplaySquares[rowIndex] = new SquareJLabel[2];
+			mPieceDisplaySquares[rowIndex][WHITE_INDEX] = new SquareJLabel(mDisplayBoard.getSquare(rowIndex + 1, 1));
+			mPieceDisplaySquares[rowIndex][BLACK_INDEX] = new SquareJLabel(mDisplayBoard.getSquare(rowIndex + 1, 2));
+
+			JPanel piecePanel = new JPanel();
+			piecePanel.setLayout(new GridBagLayout());
+			GridBagConstraints constraints = new GridBagConstraints();
+
+			constraints.anchor = GridBagConstraints.CENTER;
+			constraints.gridx = 0;
+			constraints.gridy = 0;
+			piecePanel.add(new JLabel(pieceName), constraints);
+
+			constraints.gridx = 1;
+			Square whiteSquare = mPieceDisplaySquares[rowIndex][WHITE_INDEX].getSquare();
+			try
+			{
+				whiteSquare.setPiece(PieceBuilder.makePiece(pieceName, false, whiteSquare, mDisplayBoard));
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+			}
+
+			piecePanel.add(new SquareJLabel(whiteSquare), constraints);
+
+			Square blackSquare = mPieceDisplaySquares[rowIndex][BLACK_INDEX].getSquare();
+			try
+			{
+				blackSquare.setPiece(PieceBuilder.makePiece(pieceName, true, blackSquare, mDisplayBoard));
+			}
+			catch (IOException e)
+			{
+				e.printStackTrace();
+			}
+
+			constraints.gridx = 2;
+			piecePanel.add(new SquareJLabel(blackSquare), constraints);
+
+			containerConstraints.gridy = rowIndex++;
+			listContainer.add(piecePanel, containerConstraints);
+
+			// also add it to the model
+			list.addElement(piecePanel);
+		}
 
 		mPieceTypeList = new JList(list);
 
-		mPieceTypeList.setSelectionMode(ListSelectionModel.SINGLE_INTERVAL_SELECTION);
+		// mPieceTypeList.setCellRenderer(new IconListRenderer());
+		mPieceTypeList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		mPieceTypeList.setLayoutOrientation(JList.VERTICAL);
 		mPieceTypeList.setVisibleRowCount(-1);
 		mPieceTypeList.setSelectedIndex(0);
 
-		updateDisplaySquares();
-
-		ListSelectionModel selectList = mPieceTypeList.getSelectionModel();
-
-		mScrollPane.getViewport().add(mPieceTypeList, null);
-
-		selectList.addListSelectionListener(new ListSelectionListener()
-		{
-			@Override
-			public void valueChanged(ListSelectionEvent event)
-			{
-				updateDisplaySquares();
-			}
-		});
-
 		mPieceListPanel.revalidate();
 		mPieceListPanel.repaint();
+		updateDisplaySquares();
 
 		Driver.getInstance().pack();
 	}
@@ -981,36 +1022,11 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 
 	private void updateDisplaySquares()
 	{
-		Piece whitePieceBeingDisplayed = null;
-		Piece blackPieceBeingDisplayed = null;
-
-		try
+		for (SquareJLabel[] squareLabels: mPieceDisplaySquares)
 		{
-			whitePieceBeingDisplayed = PieceBuilder.makePiece(mPieceTypeList.getSelectedValue().toString(), false,
-					mPieceDisplaySquares[WHITE_INDEX].getSquare(), mDisplayBoard);
-			blackPieceBeingDisplayed = PieceBuilder.makePiece(mPieceTypeList.getSelectedValue().toString(), true,
-					mPieceDisplaySquares[BLACK_INDEX].getSquare(), mDisplayBoard);
-		}
-		catch (IOException e)
-		{
-			JOptionPane.showMessageDialog(Driver.getInstance(), Messages.getString("VariantCreationPanel.errorCouldNotLoadPiece")); //$NON-NLS-1$
-			e.printStackTrace();
-			return;
-		}
-
-		mPieceDisplaySquares[WHITE_INDEX].getSquare().setPiece(whitePieceBeingDisplayed);
-		mPieceDisplaySquares[BLACK_INDEX].getSquare().setPiece(blackPieceBeingDisplayed);
-
-		for (SquareJLabel squareLabel : mPieceDisplaySquares)
-		{
-			squareLabel.resetColor();
-			squareLabel.refresh();
-			for (MouseListener listener : squareLabel.getMouseListeners())
+			for (SquareJLabel squareLabel : squareLabels)
 			{
-				if (listener instanceof PieceDisplayBoardListener)
-					((PieceDisplayBoardListener) listener).onPieceSelectionChanged();
-				else if (listener instanceof PieceNormalBoardListener)
-					((PieceNormalBoardListener) listener).onPieceSelectionChanged();
+				squareLabel.refresh();
 			}
 		}
 	}
@@ -1021,7 +1037,7 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 
 	private final GlassPane mGlobalGlassPane;
 	private final DropManager mDropManager;
-	private final SquareJLabel[] mPieceDisplaySquares = new SquareJLabel[2];
+	private SquareJLabel[][] mPieceDisplaySquares;
 
 	public Rules mWhiteRules;
 	public Rules mBlackRules;
@@ -1036,17 +1052,17 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 	private JButton mChangePromotionButton;
 	private JList mPieceTypeList;
 	private JFrame mOptionsFrame;
-	private JScrollPane mScrollPane = new JScrollPane();
+	private JScrollPane mScrollPane;
 	private MotionAdapter m_motionAdapter;
 	private Board mDisplayBoard;
 	private Board[] mGameBoards;
-	
+
 	@Override
 	public void onPieceMenuClosed()
 	{
 		mOptionsFrame.dispose();
 	}
-	
+
 	@Override
 	public void openPieceMakerPanel(String pieceName, PieceMenuPanel panel)
 	{
@@ -1061,7 +1077,7 @@ public class VariantCreationPanel extends ChessPanel implements PieceMenuManager
 	{
 		openPieceMakerPanel(null, panel);
 	}
-	
+
 	@Override
 	public String getReturnButtonText()
 	{
